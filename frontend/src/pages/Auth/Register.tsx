@@ -4,6 +4,7 @@
 import { useState, type FormEvent } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { Database, Wallet } from 'lucide-react';
+import { BrowserProvider } from 'ethers';
 import { useAuth } from '../../contexts/AuthContext';
 import { useWallet } from '../../contexts/WalletContext';
 import './Auth.css';
@@ -14,13 +15,20 @@ export default function Register() {
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [error, setError] = useState('');
-  const { register, loginWithMetaMask, isLoading } = useAuth();
-  const { connect, isConnecting } = useWallet();
+  const [showMetaMaskPopup, setShowMetaMaskPopup] = useState(false);
+  
+  const { register, isLoading } = useAuth();
+  const { connect, isConnecting, isConnected, address } = useWallet();
   const navigate = useNavigate();
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
     setError('');
+
+    if (!isConnected || !address) {
+      setError('Vui lòng liên kết MetaMask trước khi đăng ký');
+      return;
+    }
 
     if (!name || !email || !password || !confirmPassword) {
       setError('Vui lòng nhập đầy đủ thông tin');
@@ -35,21 +43,34 @@ export default function Register() {
       return;
     }
 
-    const success = await register(name, email, password);
-    if (success) {
-      navigate('/dashboard');
-    } else {
-      setError('Đăng ký thất bại. Vui lòng thử lại.');
+    try {
+      // Yêu cầu ký message xác nhận ownership
+      if (!window.ethereum) {
+        setError('MetaMask chưa được cài đặt');
+        return;
+      }
+
+      const message = `BlockData Register: ${Date.now()}`;
+      const provider = new BrowserProvider(window.ethereum);
+      const signer = await provider.getSigner();
+      const signature = await signer.signMessage(message);
+
+      const success = await register(name, email, password, address, signature, message);
+      if (success) {
+        navigate('/dashboard');
+      }
+    } catch (err: any) {
+      setError(err.message || 'Đăng ký thất bại. Vui lòng thử lại.');
     }
   };
 
   const handleMetaMask = async () => {
+    if (typeof window === 'undefined' || !(window as any).ethereum) {
+      setShowMetaMaskPopup(true);
+      return;
+    }
     try {
-      const address = await connect();
-      if (address) {
-        const success = await loginWithMetaMask(address);
-        if (success) navigate('/dashboard');
-      }
+      await connect();
     } catch (err: any) {
       setError(err.message || 'Lỗi kết nối MetaMask');
     }
@@ -57,6 +78,42 @@ export default function Register() {
 
   return (
     <div className="auth-page">
+      {showMetaMaskPopup && (
+        <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.7)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000, backdropFilter: 'blur(4px)' }}>
+          <div style={{ backgroundColor: '#1e1e2d', padding: '24px', borderRadius: '16px', border: '1px solid rgba(255, 255, 255, 0.1)', maxWidth: '400px', width: '90%', textAlign: 'center', boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.5)' }}>
+            <div style={{ width: '64px', height: '64px', margin: '0 auto 16px', backgroundColor: 'rgba(246, 133, 27, 0.1)', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <Wallet style={{ color: '#f6851b' }} size={32} />
+            </div>
+            <h3 style={{ color: 'white', marginBottom: '12px', fontSize: '1.25rem', fontWeight: 600 }}>Cần có MetaMask</h3>
+            <p style={{ color: '#9ca3af', marginBottom: '24px', lineHeight: 1.5, fontSize: '0.95rem' }}>
+              Bạn cần tải extension MetaMask để liên kết tài khoản và đăng ký.
+            </p>
+            <div style={{ display: 'flex', gap: '12px', justifyContent: 'center' }}>
+              <button 
+                type="button" 
+                onClick={() => setShowMetaMaskPopup(false)}
+                style={{ padding: '10px 20px', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.1)', backgroundColor: 'transparent', color: 'white', cursor: 'pointer', fontWeight: 500, transition: 'all 0.2s', flex: 1 }}
+                onMouseOver={(e) => e.currentTarget.style.backgroundColor = 'rgba(255,255,255,0.05)'}
+                onMouseOut={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
+              >
+                Đóng
+              </button>
+              <a 
+                href="https://metamask.io/download/" 
+                target="_blank" 
+                rel="noopener noreferrer"
+                style={{ padding: '10px 20px', borderRadius: '8px', border: 'none', backgroundColor: '#f6851b', color: 'white', textDecoration: 'none', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 500, transition: 'all 0.2s', flex: 1 }}
+                onClick={() => setShowMetaMaskPopup(false)}
+                onMouseOver={(e) => e.currentTarget.style.backgroundColor = '#e27618'}
+                onMouseOut={(e) => e.currentTarget.style.backgroundColor = '#f6851b'}
+              >
+                Tải Extension
+              </a>
+            </div>
+          </div>
+        </div>
+      )}
+
       <div className="auth-card">
         <Link to="/" className="auth-logo">
           <div className="auth-logo-icon">
@@ -118,19 +175,42 @@ export default function Register() {
             />
           </div>
 
-          <button type="submit" className="auth-submit" disabled={isLoading}>
-            {isLoading ? 'Đang xử lý...' : 'Tạo tài khoản'}
+          <div className="auth-field" style={{ marginTop: '8px' }}>
+            <label>Xác thực Blockchain (Bắt buộc)</label>
+            {!isConnected ? (
+                <button 
+                  type="button" 
+                  className="auth-metamask-btn" 
+                  onClick={handleMetaMask} 
+                  disabled={isConnecting}
+                  style={{ width: '100%', marginTop: '4px' }}
+                >
+                  <Wallet size={18} />
+                  {isConnecting ? 'Đang kết nối...' : 'Liên kết MetaMask'}
+                </button>
+             ) : (
+                <div style={{ marginTop: '4px', padding: '12px', backgroundColor: 'rgba(74, 222, 128, 0.1)', border: '1px solid rgba(74, 222, 128, 0.2)', borderRadius: '8px', color: '#4ade80', display: 'flex', alignItems: 'center', gap: '8px', fontWeight: 500 }}>
+                  <Wallet size={18} />
+                  <span>Đã liên kết ví: {address?.slice(0, 6)}...{address?.slice(-4)}</span>
+                </div>
+             )}
+          </div>
+
+          <button 
+            type="submit" 
+            className="auth-submit" 
+            disabled={isLoading || !isConnected}
+            style={{ 
+              marginTop: '1.5rem',
+              opacity: (!isConnected) ? 0.6 : 1,
+              cursor: (!isConnected) ? 'not-allowed' : 'pointer'
+            }}
+          >
+            {isLoading ? 'Đang xử lý...' : (!isConnected ? 'Cần liên kết MetaMask' : 'Tạo tài khoản')}
           </button>
         </form>
 
-        <div className="auth-divider"><span>hoặc</span></div>
-
-        <button type="button" className="auth-metamask-btn" onClick={handleMetaMask} disabled={isConnecting}>
-          <Wallet size={18} />
-          {isConnecting ? 'Đang kết nối...' : 'Đăng ký bằng MetaMask'}
-        </button>
-
-        <div className="auth-footer">
+        <div className="auth-footer" style={{ marginTop: '1.5rem' }}>
           Đã có tài khoản? <Link to="/login">Đăng nhập</Link>
         </div>
       </div>

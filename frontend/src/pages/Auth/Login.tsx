@@ -4,6 +4,7 @@
 import { useState, type FormEvent } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { Database, Wallet } from 'lucide-react';
+import { BrowserProvider } from 'ethers';
 import { useAuth } from '../../contexts/AuthContext';
 import { useWallet } from '../../contexts/WalletContext';
 import './Auth.css';
@@ -25,21 +26,38 @@ export default function Login() {
       return;
     }
 
-    const success = await login(email, password);
-    if (success) {
-      navigate('/dashboard');
-    } else {
-      setError('Email hoặc mật khẩu không đúng');
+    try {
+      const success = await login(email, password);
+      if (success) {
+        navigate('/dashboard');
+      }
+    } catch (err: any) {
+      setError(err.message || 'Email hoặc mật khẩu không đúng');
     }
   };
 
   const handleMetaMask = async () => {
+    setError('');
     try {
+      // 1. Kết nối ví MetaMask
       const address = await connect();
-      if (address) {
-        const success = await loginWithMetaMask(address);
-        if (success) navigate('/dashboard');
+      if (!address) return;
+
+      // 2. Tạo message và yêu cầu user ký
+      const message = `BlockData Login: ${Date.now()}`;
+      
+      if (!window.ethereum) {
+        setError('MetaMask chưa được cài đặt');
+        return;
       }
+
+      const provider = new BrowserProvider(window.ethereum);
+      const signer = await provider.getSigner();
+      const signature = await signer.signMessage(message);
+
+      // 3. Gửi lên backend xác thực
+      const success = await loginWithMetaMask(address, signature, message);
+      if (success) navigate('/dashboard');
     } catch (err: any) {
       setError(err.message || 'Lỗi đăng nhập qua MetaMask');
     }
@@ -92,7 +110,7 @@ export default function Login() {
 
         <div className="auth-divider"><span>hoặc</span></div>
 
-        <button className="auth-metamask-btn" onClick={handleMetaMask} disabled={isConnecting}>
+        <button className="auth-metamask-btn" onClick={handleMetaMask} disabled={isConnecting || isLoading}>
           <Wallet size={18} />
           {isConnecting ? 'Đang kết nối...' : 'Đăng nhập bằng MetaMask'}
         </button>

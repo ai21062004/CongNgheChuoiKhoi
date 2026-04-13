@@ -1,9 +1,9 @@
 // ============================================
 // Auth Context - Authentication State Management
 // ============================================
-import { createContext, useContext, useState, useCallback, type ReactNode } from 'react';
+import { createContext, useContext, useState, useCallback, useEffect, type ReactNode } from 'react';
 import type { User } from '../types';
-import { mockCurrentUser, mockAdminUser } from '../services/mockData';
+import * as authServiceApi from '../services/authService';
 
 interface AuthContextType {
   user: User | null;
@@ -11,66 +11,124 @@ interface AuthContextType {
   isAdmin: boolean;
   isLoading: boolean;
   login: (email: string, password: string) => Promise<boolean>;
-  loginWithMetaMask: (address: string) => Promise<boolean>;
-  register: (name: string, email: string, password: string) => Promise<boolean>;
+  loginWithMetaMask: (address: string, signature: string, message: string) => Promise<boolean>;
+  register: (name: string, email: string, password: string, walletAddress: string, signature: string, message: string) => Promise<boolean>;
   logout: () => void;
   updateProfile: (data: Partial<User>) => void;
 }
 
 const AuthContext = createContext<AuthContextType | null>(null);
 
+// Helper: chuyển API response → User type
+function apiUserToUser(apiUser: authServiceApi.AuthResponse['user']): User {
+  return {
+    id: apiUser.id,
+    name: apiUser.name,
+    email: apiUser.email,
+    role: 'user', // Backend sẽ bổ sung role sau
+    walletAddress: apiUser.walletAddress,
+    createdAt: apiUser.createdAt,
+    isLocked: false,
+  };
+}
+
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
-  const [isLoading, setIsLoading] = useState(false);
+  const [isLoading, setIsLoading] = useState(true); // true lúc đầu để check token
 
-  const login = useCallback(async (email: string, _password: string): Promise<boolean> => {
+  // Khôi phục session từ localStorage khi app khởi động
+  useEffect(() => {
+    const restoreSession = async () => {
+      const token = localStorage.getItem('blockdata_token');
+      if (!token) {
+        setIsLoading(false);
+        return;
+      }
+
+      try {
+        const data = await authServiceApi.getMe();
+        setUser(apiUserToUser(data.user));
+      } catch {
+        // Token hết hạn hoặc không hợp lệ
+        localStorage.removeItem('blockdata_token');
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    restoreSession();
+  }, []);
+
+  const login = useCallback(async (email: string, password: string): Promise<boolean> => {
     setIsLoading(true);
-    // Simulate API call
-    await new Promise(r => setTimeout(r, 800));
-    
-    if (email === 'admin@system.com') {
-      setUser(mockAdminUser);
-    } else {
-      setUser({ ...mockCurrentUser, email });
+    try {
+      const data = await authServiceApi.loginEmail({ email, password });
+      localStorage.setItem('blockdata_token', data.token);
+      setUser(apiUserToUser(data.user));
+      return true;
+    } catch (error: any) {
+      const msg = error.response?.data?.error || error.message;
+      throw new Error(msg);
+    } finally {
+      setIsLoading(false);
     }
-    setIsLoading(false);
-    return true;
   }, []);
 
-  const loginWithMetaMask = useCallback(async (address: string): Promise<boolean> => {
+  const loginWithMetaMask = useCallback(async (
+    address: string,
+    signature: string,
+    message: string
+  ): Promise<boolean> => {
     setIsLoading(true);
-    await new Promise(r => setTimeout(r, 800));
-    
-    // Simulate finding user by wallet or creating new session
-    setUser({
-      ...mockCurrentUser,
-      id: 'mm-user-' + address.slice(0, 8),
-      name: 'User ' + address.slice(-4),
-      email: 'Chưa cập nhật',
-      walletAddress: address,
-    });
-    
-    setIsLoading(false);
-    return true;
+    try {
+      const data = await authServiceApi.loginWallet({
+        walletAddress: address,
+        signature,
+        message,
+      });
+      localStorage.setItem('blockdata_token', data.token);
+      setUser(apiUserToUser(data.user));
+      return true;
+    } catch (error: any) {
+      const msg = error.response?.data?.error || error.message;
+      throw new Error(msg);
+    } finally {
+      setIsLoading(false);
+    }
   }, []);
 
-  const register = useCallback(async (name: string, email: string, _password: string): Promise<boolean> => {
+  const register = useCallback(async (
+    name: string,
+    email: string,
+    password: string,
+    walletAddress: string,
+    signature: string,
+    message: string
+  ): Promise<boolean> => {
     setIsLoading(true);
-    await new Promise(r => setTimeout(r, 1000));
-    
-    setUser({
-      ...mockCurrentUser,
-      id: 'user-new-' + Date.now(),
-      name,
-      email,
-      createdAt: new Date().toISOString(),
-    });
-    setIsLoading(false);
-    return true;
+    try {
+      const data = await authServiceApi.registerUser({
+        name,
+        email,
+        password,
+        walletAddress,
+        signature,
+        message,
+      });
+      localStorage.setItem('blockdata_token', data.token);
+      setUser(apiUserToUser(data.user));
+      return true;
+    } catch (error: any) {
+      const msg = error.response?.data?.error || error.message;
+      throw new Error(msg);
+    } finally {
+      setIsLoading(false);
+    }
   }, []);
 
   const logout = useCallback(() => {
     setUser(null);
+    localStorage.removeItem('blockdata_token');
   }, []);
 
   const updateProfile = useCallback((data: Partial<User>) => {

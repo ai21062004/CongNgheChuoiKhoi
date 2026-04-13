@@ -6,6 +6,7 @@ import { useNavigate } from 'react-router-dom';
 import { Bell, Menu, Wallet } from 'lucide-react';
 import { useWallet } from '../../contexts/WalletContext';
 import { useNotifications } from '../../contexts/NotificationContext';
+import { useAuth } from '../../contexts/AuthContext';
 import { truncateAddress, formatRelativeTime, getNotificationColor } from '../../utils/helpers';
 import './Header.css';
 
@@ -17,9 +18,14 @@ interface HeaderProps {
 export default function Header({ title, onMenuClick }: HeaderProps) {
   const { address, isConnected, isConnecting, connect } = useWallet();
   const { notifications, unreadCount, markAsRead, markAllAsRead } = useNotifications();
+  const { user, isAdmin } = useAuth();
   const [showNotifs, setShowNotifs] = useState(false);
   const notifRef = useRef<HTMLDivElement>(null);
   const navigate = useNavigate();
+
+  const getInitials = (name: string) => {
+    return name.split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase();
+  };
 
   // Close dropdown on outside click
   useEffect(() => {
@@ -50,24 +56,17 @@ export default function Header({ title, onMenuClick }: HeaderProps) {
       </div>
 
       <div className="header-right">
-        {/* Wallet */}
-        <button
-          className={`header-wallet-btn ${isConnected ? 'connected' : ''}`}
-          onClick={!isConnected ? connect : undefined}
-          disabled={isConnecting}
-        >
-          {isConnected ? (
-            <>
-              <span className="wallet-dot" />
-              <span>{truncateAddress(address || '', 4)}</span>
-            </>
-          ) : (
-            <>
-              <Wallet size={16} />
-              <span>{isConnecting ? 'Đang kết nối...' : 'Kết nối ví'}</span>
-            </>
-          )}
-        </button>
+        {/* User Profile */}
+        <div className="sidebar-user" style={{ background: 'var(--bg-glass)', border: '1px solid var(--border-color)', height: '40px', padding: '0 12px', borderRadius: '20px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '8px' }} onClick={() => navigate('/profile')}>
+          <div className="sidebar-user-avatar" style={{ width: '28px', height: '28px', fontSize: '12px' }}>
+            {user ? getInitials(user.name) : '?'}
+          </div>
+          <div className="sidebar-user-info" style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+            <div className="sidebar-user-name" style={{ fontSize: '13px', maxWidth: '100px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{user?.name || 'Guest'}</div>
+            <div style={{ height: '12px', width: '1px', background: 'var(--border-color)' }}></div>
+            <div className="sidebar-user-role" style={{ fontSize: '11px', opacity: 0.7 }}>{isAdmin ? 'Admin' : 'User'}</div>
+          </div>
+        </div>
 
         {/* Notifications */}
         <div ref={notifRef} style={{ position: 'relative' }}>

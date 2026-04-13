@@ -119,6 +119,22 @@ export const mockAccessRequests: AccessRequest[] = [
     requestedAt: '2026-04-11T14:00:00Z', respondedAt: '2026-04-11T15:00:00Z',
     txHash: '0xabcd1234567890...',
   },
+  {
+    id: 'req-004', dataId: 'data-003', dataTitle: 'Ảnh thiết kế UI System',
+    requesterId: 'user-004', requesterName: 'Phạm Thị D', requesterWallet: '0x3344...5566',
+    ownerId: 'user-002', ownerName: 'Trần Thị B',
+    permissions: ['read'], status: 'pending',
+    message: 'Xin cấp quyền xem bản thiết kế giao diện.',
+    requestedAt: '2026-04-13T09:20:00Z',
+  },
+  {
+    id: 'req-005', dataId: 'data-004', dataTitle: 'Video hướng dẫn sử dụng',
+    requesterId: 'user-005', requesterName: 'Hoàng Văn E', requesterWallet: '0x7788...99aa',
+    ownerId: 'user-003', ownerName: 'Lê Văn C',
+    permissions: ['read', 'download'], status: 'pending',
+    message: 'Tôi là nhân viên thực tập, cần tải file video hướng dẫn.',
+    requestedAt: '2026-04-13T14:10:00Z',
+  },
 ];
 
 export const mockAccessGrants: AccessGrant[] = [
@@ -217,7 +233,7 @@ export const mockNotifications: Notification[] = [
 export const mockDashboardStats: DashboardStats = {
   totalFiles: 4,
   sharedFiles: 2,
-  pendingRequests: 2,
+  pendingRequests: 4,
   storageUsed: 108_961_792,
   totalAccesses: 15,
   integrityAlerts: 1,

@@ -59,52 +59,12 @@ export default function Dashboard() {
           <div className="stat-card-label">Dung lượng sử dụng</div>
         </div>
 
-        <div className="stat-card">
-          <div className="stat-card-header">
-            <div className="stat-card-icon" style={{ background: 'var(--color-accent-light)', color: 'var(--color-accent)' }}>
-              <Shield size={20} />
-            </div>
-          </div>
-          <div className="stat-card-value">{stats.totalAccesses}</div>
-          <div className="stat-card-label">Lượt truy cập</div>
-        </div>
-
-        <div className="stat-card">
-          <div className="stat-card-header">
-            <div className="stat-card-icon" style={{ background: 'var(--color-danger-light)', color: 'var(--color-danger)' }}>
-              <AlertTriangle size={20} />
-            </div>
-          </div>
-          <div className="stat-card-value">{stats.integrityAlerts}</div>
-          <div className="stat-card-label">Cảnh báo toàn vẹn</div>
-        </div>
       </div>
 
-      {/* Quick Actions + Recent Data */}
+      {/* Pending Requests + Recent Data */}
       <div className="dashboard-grid">
-        {/* Quick Actions */}
-        <div className="dashboard-section">
-          <div className="dashboard-section-header">
-            <h2 className="dashboard-section-title">Hành động nhanh</h2>
-          </div>
-          <div className="quick-actions">
-            <Link to="/data/upload" className="quick-action-btn">
-              <Upload size={18} /> Upload file
-            </Link>
-            <Link to="/search" className="quick-action-btn">
-              <Search size={18} /> Tìm kiếm
-            </Link>
-            <Link to="/access" className="quick-action-btn">
-              <Shield size={18} /> Quản lý quyền
-            </Link>
-            <Link to="/data" className="quick-action-btn">
-              <Plus size={18} /> Xem tất cả
-            </Link>
-          </div>
-        </div>
-
         {/* Pending Requests */}
-        <div className="dashboard-section">
+        <div className="dashboard-section dashboard-section-full">
           <div className="dashboard-section-header">
             <h2 className="dashboard-section-title">Yêu cầu truy cập ({pendingRequests.length})</h2>
             <Link to="/access" className="dashboard-section-action">Xem tất cả</Link>
@@ -120,6 +80,7 @@ export default function Dashboard() {
                   <th>Người yêu cầu</th>
                   <th>Dữ liệu</th>
                   <th>Quyền</th>
+                  <th>Thời gian yêu cầu</th>
                 </tr>
               </thead>
               <tbody>
@@ -134,6 +95,7 @@ export default function Dashboard() {
                         </span>
                       ))}
                     </td>
+                    <td style={{ color: 'var(--text-secondary)' }}>{formatRelativeTime(req.requestedAt)}</td>
                   </tr>
                 ))}
               </tbody>
@@ -153,7 +115,6 @@ export default function Dashboard() {
                 <th>Tên</th>
                 <th>Loại</th>
                 <th>Kích thước</th>
-                <th>Toàn vẹn</th>
                 <th>Thời gian</th>
               </tr>
             </thead>
@@ -173,11 +134,6 @@ export default function Dashboard() {
                       </span>
                     </td>
                     <td>{formatFileSize(item.fileSize)}</td>
-                    <td>
-                      <span className={`integrity-dot ${item.integrityValid ? 'valid' : 'invalid'}`}>
-                        {item.integrityValid ? 'Hợp lệ' : 'Bất thường'}
-                      </span>
-                    </td>
                     <td style={{ color: 'var(--text-secondary)' }}>{formatRelativeTime(item.uploadedAt)}</td>
                   </tr>
                 );

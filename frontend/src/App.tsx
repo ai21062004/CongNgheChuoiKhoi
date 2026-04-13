@@ -12,10 +12,9 @@ import Login from './pages/Auth/Login';
 import Register from './pages/Auth/Register';
 import Dashboard from './pages/Dashboard/Dashboard';
 import DataList from './pages/DataManagement/DataList';
-import DataUpload from './pages/DataManagement/DataUpload';
 import DataDetail from './pages/DataManagement/DataDetail';
+import SearchData from './pages/DataManagement/SearchData';
 import AccessControl from './pages/AccessControl/AccessControl';
-import AuditLog from './pages/AuditLog/AuditLog';
 import Profile from './pages/Profile/Profile';
 import AdminDashboard from './pages/Admin/AdminDashboard';
 
@@ -49,12 +48,11 @@ function AppRoutes() {
         
         {/* Data Management */}
         <Route path="/data" element={<DataList />} />
-        <Route path="/data/upload" element={<DataUpload />} />
         <Route path="/data/:id" element={<DataDetail />} />
+        <Route path="/search" element={<SearchData />} />
         
         {/* Core Features */}
         <Route path="/access" element={<AccessControl />} />
-        <Route path="/audit" element={<AuditLog />} />
         <Route path="/profile" element={<Profile />} />
 
         {/* Admin Routes */}

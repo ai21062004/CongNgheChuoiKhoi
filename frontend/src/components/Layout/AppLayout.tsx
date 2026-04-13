@@ -8,10 +8,10 @@ import Header from './Header';
 import './AppLayout.css';
 
 const pageTitles: Record<string, string> = {
-  '/dashboard': 'Dashboard',
+  '/dashboard': 'Tổng quan',
   '/data': 'Quản lý dữ liệu',
   '/data/upload': 'Upload dữ liệu',
-  '/access': 'Quyền truy cập',
+  '/access': 'Quản lý quyền truy cập',
   '/audit': 'Audit Log',
   '/search': 'Tìm kiếm',
   '/profile': 'Hồ sơ cá nhân',
